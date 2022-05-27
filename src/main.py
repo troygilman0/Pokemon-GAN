@@ -27,6 +27,8 @@ critic_it = 5
 lambda_gp = 10
 
 my_transforms = transforms.Compose([
+    transforms.Resize(img_size * 3),
+    transforms.CenterCrop(img_size * 2),
     transforms.Resize(img_size),
     transforms.ToTensor(), 
     transforms.Normalize((0.5,), (0.5,))
