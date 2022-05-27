@@ -20,7 +20,7 @@ img_size = 64
 channels_img = 3
 channels_noise = 100
 batch_size = 64
-num_epochs = 500
+num_epochs = 1000
 features_d = 64
 features_g = 64
 critic_it = 5
@@ -39,7 +39,7 @@ to_image = transforms.ToPILImage()
 device = "cpu"#"cuda" if torch.cuda.is_available() else "cpu"
 print('Using:', device)
 
-dataset = load_dataset('data/', my_transforms)
+dataset = load_dataset('real_data/', my_transforms)
 #dataset = list(datasets.MNIST(root='dataset/', train=False, transform=my_transforms, download=True))[:100]
 print("Dataset Size:", len(dataset))
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
@@ -53,7 +53,6 @@ init_weights(net_gen)
 
 opt_critic = optim.Adam(net_critic.parameters(), lr=lr, betas=(0.0, 0.9))
 opt_gen = optim.Adam(net_gen.parameters(), lr=lr, betas=(0.0, 0.9))
-# criterion = nn.BCELoss()
 
 list_loss_disc = []
 list_loss_gen = []
