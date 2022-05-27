@@ -9,19 +9,18 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d, features_d * 2, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(features_d * 2),
+            nn.LayerNorm([features_d * 2, 16, 16]),
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d * 2, features_d * 4, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(features_d * 4),
+            nn.LayerNorm([features_d * 4, 8, 8]),
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d * 4, features_d * 8, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(features_d * 8),
+            nn.LayerNorm([features_d * 8, 4, 4]),
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d * 8, 1, kernel_size=4, stride=2, padding=0),
-            nn.Sigmoid()
         )
 
     def forward(self, x):
