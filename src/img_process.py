@@ -5,6 +5,7 @@ from tqdm import tqdm
 import datetime
 from PIL import Image
 import warnings
+import logger
 
 
 def load_dataset(path, transforms):
@@ -19,8 +20,7 @@ def load_dataset(path, transforms):
             image = transforms(image)
             #print('Loading:', file, '|', 'Shape:', image.shape)
             dataset.append((image, 0))
-    print(f'[INFO] {datetime.datetime.now()}\
-        Loaded {len(dataset)} files from {path}')
+    logger.start_log(f'Loaded {len(dataset)} files from {path}')
     return dataset
 
 

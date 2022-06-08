@@ -3,25 +3,26 @@ import torch.optim as optim
 import torchvision
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-#from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import datetime
 
 from img_process import load_dataset
 from models import Discriminator, Generator, init_weights
 from plots import plot_loss
-from utils import gradient_penalty
+from utils import gradient_penalty, listen
+import logger
 
 
 
-lr = 1e-5
+lr = 2e-4
 img_size = 64
 channels_img = 3
 channels_noise = 100
 batch_size = 64
-num_epochs = 1000
+num_epochs = 10000
 features_d = 64
 features_g = 64
-critic_it = 10
+critic_it = 5
 lambda_gp = 10
 
 my_transforms = transforms.Compose([
@@ -37,10 +38,9 @@ to_image = transforms.ToPILImage()
 # Hyperparameters etc.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-dataset = load_dataset('real_data', my_transforms)
+dataset = load_dataset('real_data', my_transforms)[:10]
 #dataset = list(datasets.MNIST(root='dataset/', train=False, transform=my_transforms, download=True))[:100]
-print(f'[INFO] {datetime.datetime.now()} |\
-    Dataset Size: {len(dataset)}')
+logger.start_log(f'Dataset Size: {len(dataset)}')
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 fixed_noise = torch.randn((batch_size, channels_noise, 1, 1)).to(device)
 
@@ -49,22 +49,25 @@ net_gen = Generator(channels_noise, channels_img, features_g).to(device)
 init_weights(net_critic)
 init_weights(net_gen)
 
-opt_critic = optim.Adam(net_critic.parameters(), lr=lr, betas=(0.0, 0.9))
-opt_gen = optim.Adam(net_gen.parameters(), lr=lr, betas=(0.0, 0.9))
+opt_critic = optim.Adam(net_critic.parameters(), lr=lr, betas=(0.5, 0.9))
+opt_gen = optim.Adam(net_gen.parameters(), lr=lr, betas=(0.5, 0.9))
 
 list_loss_disc = []
 list_loss_gen = []
 
-# writer_real = SummaryWriter(f"logs/real")
-# writer_fake = SummaryWriter(f"logs/fake")
+writer_real = SummaryWriter(f"logs/real")
+writer_fake = SummaryWriter(f"logs/fake")
 step = 0
 
-print(f'[INFO] {datetime.datetime.now()}\
-    Using: {device}')
-print(f'[INFO] {datetime.datetime.now()}\
-    Training: WGAN-GP')
+logger.start_log(f'Using: {device}')
+logger.start_log(f'Batch Size: {batch_size}')
+logger.start_log(f'Learning Rate: {lr}')
+logger.start_log(f'Critic Iterations: {critic_it}')
+logger.start_log(f'Features Critic: {features_d}')
+logger.start_log(f'Features Gen: {features_g}')
+train_start_time = logger.start_log('======== TRAINING: WGAN-GP ========')
 for epoch in range(1, num_epochs + 1):
-    start_time = datetime.datetime.now().timestamp()
+    epoch_start_time = logger.start_log(log=False)
 
     for batch_idx, (real, _) in enumerate(dataloader):
         real = real.to(device)
@@ -91,11 +94,14 @@ for epoch in range(1, num_epochs + 1):
 
     list_loss_disc.append(loss_critic.item())
     list_loss_gen.append(loss_gen.item())
-    print(f"[INFO] {datetime.datetime.now()}\
-        Epoch [{epoch}/{num_epochs}]\
-        Loss C: {loss_critic:.2f}, Loss G: {loss_gen:.2f}, Time: {(datetime.datetime.now().timestamp() - start_time):.2}")
 
-"""     with torch.no_grad():
+    #duration = datetime.datetime.now().timestamp() - start_time
+    #est_time_compl = datetime.datetime.now() + datetime.timedelta(seconds=(duration * (num_epochs - epoch)))
+    if epoch % 10 == 0:
+        logger.end_log(epoch_start_time, f'Epoch [{epoch}/{num_epochs}]\
+            Loss C: {loss_critic:.2f}, Loss G: {loss_gen:.2f}')
+
+    with torch.no_grad():
         real_grid = torchvision.utils.make_grid(real[:32], normalize=True)
         writer_real.add_image("Real", real_grid, global_step=epoch)
 
@@ -104,8 +110,14 @@ for epoch in range(1, num_epochs + 1):
         writer_fake.add_image("Fake", fake_grid, global_step=epoch)
         if epoch % 100 == 0:
             fake_images = to_image(fake_grid)
-            fake_images.save('fake_data/fake' + str(epoch) + '.png') """
+            fake_images.save('fake_data/fake' + str(epoch) + '.png')
 
+    input = listen()
+    if input == 'q\n':
+        break
+
+logger.end_log(train_start_time, f'Finished training model\
+    Epoch [{epoch}/{num_epochs}]')
 torch.save(net_gen.state_dict(), 'model.pt')
-plot_loss(list_loss_disc, list_loss_gen)
+plot_loss(list_loss_disc, list_loss_gen, lr, critic_it)
 

@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import sys
+import select
 
 def gradient_penalty(critic, real, fake, device='cpu'):
     BATCH_SIZE, C, H, W = real.shape
@@ -17,3 +19,12 @@ def gradient_penalty(critic, real, fake, device='cpu'):
     graident_norm = gradient.norm(2, dim=1)
     gradient_penalty = torch.mean((graident_norm - 1) ** 2)
     return gradient_penalty
+
+def listen():
+    while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+        line = sys.stdin.readline()
+        if line:
+            return line
+        else: # an empty line means stdin has been closed
+            exit(0)
+    return None
