@@ -99,6 +99,7 @@ for epoch in range(1, num_epochs + 1):
 
     list_loss_disc.append(loss_critic.item())
     list_loss_gen.append(loss_gen.item())
+    plot_loss(list_loss_disc, list_loss_gen, lr, critic_it)
 
     if epoch % 10 == 0:
         logger.end_log(epoch_start_time, f'Epoch [{epoch}/{num_epochs}]\
@@ -122,5 +123,3 @@ for epoch in range(1, num_epochs + 1):
 logger.end_log(train_start_time, f'Finished training model\
     Epoch [{epoch}/{num_epochs}]')
 torch.save(net_gen.state_dict(), 'model.pt')
-plot_loss(list_loss_disc, list_loss_gen, lr, critic_it)
-
