@@ -1,3 +1,4 @@
+from types import new_class
 import torch
 import torch.nn as nn
 import sys
@@ -28,3 +29,10 @@ def listen():
         else: # an empty line means stdin has been closed
             exit(0)
     return None
+
+def apply_transform(transform, data):
+    new_data = []
+    for x in data:
+        new_data.append(transform(x))
+    new_data = torch.concat(new_data).view(data.shape)
+    return new_data

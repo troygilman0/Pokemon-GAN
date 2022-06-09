@@ -4,12 +4,11 @@ import torchvision
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torch.utils.tensorboard import SummaryWriter
-import datetime
 
 from img_process import load_dataset
 from models import Discriminator, Generator, init_weights
 from plots import plot_loss
-from utils import gradient_penalty, listen
+from utils import gradient_penalty, listen, apply_transform
 import logger
 
 
@@ -25,7 +24,7 @@ features_g = 64
 critic_it = 5
 lambda_gp = 10
 
-my_transforms = transforms.Compose([
+pre_process_transforms = transforms.Compose([
     transforms.Resize(img_size * 3),
     transforms.CenterCrop(img_size * 2),
     transforms.Resize(img_size),
@@ -33,13 +32,17 @@ my_transforms = transforms.Compose([
     transforms.Normalize((0.5,), (0.5,))
     ])
 
-to_image = transforms.ToPILImage()
+random_transforms = transforms.Compose([
+    transforms.RandomRotation(degrees=45),
+    transforms.RandomHorizontalFlip(p=0.25),
+    ])
+
+to_image_transform = transforms.ToPILImage()
 
 # Hyperparameters etc.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-dataset = load_dataset('real_data', my_transforms)[:10]
-#dataset = list(datasets.MNIST(root='dataset/', train=False, transform=my_transforms, download=True))[:100]
+dataset = load_dataset('real_data', pre_process_transforms)
 logger.start_log(f'Dataset Size: {len(dataset)}')
 dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 fixed_noise = torch.randn((batch_size, channels_noise, 1, 1)).to(device)
@@ -70,6 +73,7 @@ for epoch in range(1, num_epochs + 1):
     epoch_start_time = logger.start_log(log=False)
 
     for batch_idx, (real, _) in enumerate(dataloader):
+        real = apply_transform(random_transforms, real)
         real = real.to(device)
         batch_size = real.shape[0]
 
@@ -77,6 +81,7 @@ for epoch in range(1, num_epochs + 1):
         for _ in range(critic_it):
             noise = torch.randn(batch_size, channels_noise, 1, 1).to(device)
             fake = net_gen(noise)
+            fake = apply_transform(random_transforms, fake)
             critic_real = net_critic(real).reshape(-1)
             critic_fake = net_critic(fake).reshape(-1)
             grad_penalty = gradient_penalty(net_critic, real, fake, device=device)
@@ -95,8 +100,6 @@ for epoch in range(1, num_epochs + 1):
     list_loss_disc.append(loss_critic.item())
     list_loss_gen.append(loss_gen.item())
 
-    #duration = datetime.datetime.now().timestamp() - start_time
-    #est_time_compl = datetime.datetime.now() + datetime.timedelta(seconds=(duration * (num_epochs - epoch)))
     if epoch % 10 == 0:
         logger.end_log(epoch_start_time, f'Epoch [{epoch}/{num_epochs}]\
             Loss C: {loss_critic:.2f}, Loss G: {loss_gen:.2f}')
@@ -109,7 +112,7 @@ for epoch in range(1, num_epochs + 1):
         fake_grid = torchvision.utils.make_grid(fake[:32], normalize=True)
         writer_fake.add_image("Fake", fake_grid, global_step=epoch)
         if epoch % 100 == 0:
-            fake_images = to_image(fake_grid)
+            fake_images = to_image_transform(fake_grid)
             fake_images.save('fake_data/fake' + str(epoch) + '.png')
 
     input = listen()
