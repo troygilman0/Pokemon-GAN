@@ -19,10 +19,12 @@ channels_img = 3
 channels_noise = 100
 batch_size = 64
 num_epochs = 10000
-features_d = 64
+features_d = 128
 features_g = 64
 critic_it = 5
 lambda_gp = 10
+p = 0.10
+
 
 pre_process_transforms = transforms.Compose([
     transforms.Resize(img_size * 3),
@@ -33,14 +35,18 @@ pre_process_transforms = transforms.Compose([
     ])
 
 random_transforms = transforms.Compose([
-    transforms.RandomRotation(degrees=45),
-    transforms.RandomHorizontalFlip(p=0.25),
+    #transforms.RandomAdjustSharpness(0.5, p=p),
+    transforms.RandomHorizontalFlip(p=p),
+    transforms.RandomErasing(p=p),
+    transforms.RandomRotation(degrees=p),
+    transforms.RandomPerspective(p=p)
     ])
 
 to_image_transform = transforms.ToPILImage()
 
 # Hyperparameters etc.
 device = "cuda" if torch.cuda.is_available() else "cpu"
+torch.manual_seed(0)
 
 dataset = load_dataset('real_data', pre_process_transforms)
 logger.start_log(f'Dataset Size: {len(dataset)}')
@@ -101,7 +107,7 @@ for epoch in range(1, num_epochs + 1):
     list_loss_gen.append(loss_gen.item())
     plot_loss(list_loss_disc, list_loss_gen, lr, critic_it)
 
-    if epoch % 10 == 0:
+    if epoch % 1 == 0:
         logger.end_log(epoch_start_time, f'Epoch [{epoch}/{num_epochs}]\
             Loss C: {loss_critic:.2f}, Loss G: {loss_gen:.2f}')
 
