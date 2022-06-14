@@ -9,15 +9,15 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d, features_d * 2, kernel_size=4, stride=2, padding=1),
-            nn.LayerNorm([features_d * 2, 16, 16]),
+            nn.LayerNorm([features_d * 2, 32, 32]),
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d * 2, features_d * 4, kernel_size=4, stride=2, padding=1),
-            nn.LayerNorm([features_d * 4, 8, 8]),
+            nn.LayerNorm([features_d * 4, 16, 16]),
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d * 4, features_d * 8, kernel_size=4, stride=2, padding=1),
-            nn.LayerNorm([features_d * 8, 4, 4]),
+            nn.LayerNorm([features_d * 8, 8, 8]),
             nn.LeakyReLU(0.2),
 
             nn.Conv2d(features_d * 8, 1, kernel_size=4, stride=2, padding=0),
@@ -31,11 +31,7 @@ class Generator(nn.Module):
     def __init__(self, channels_noise, channels_img, features_g):
         super(Generator, self).__init__()
         self.net = nn.Sequential(
-            nn.ConvTranspose2d(channels_noise, features_g * 16, kernel_size=4, stride=1, padding=0),
-            nn.BatchNorm2d(features_g * 16),
-            nn.ReLU(),
-
-            nn.ConvTranspose2d(features_g * 16, features_g * 8, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose2d(channels_noise, features_g * 8, kernel_size=4, stride=1, padding=0),
             nn.BatchNorm2d(features_g * 8),
             nn.ReLU(),
 
@@ -47,7 +43,11 @@ class Generator(nn.Module):
             nn.BatchNorm2d(features_g * 2),
             nn.ReLU(),
 
-            nn.ConvTranspose2d(features_g * 2, channels_img, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose2d(features_g * 2, features_g, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(features_g),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(features_g, channels_img, kernel_size=4, stride=4, padding=0),
             nn.Tanh()
         )
 

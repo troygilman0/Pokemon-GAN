@@ -15,7 +15,6 @@ def load_dataset(path, transforms):
             image = image.convert('RGB')
         if image is not None:
             image = transforms(image)
-            #print('Loading:', file, '|', 'Shape:', image.shape)
             dataset.append((image, 0))
     logger.start_log(f'Loaded {len(dataset)} files from {path}')
     return dataset

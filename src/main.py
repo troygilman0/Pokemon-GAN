@@ -14,16 +14,16 @@ import logger
 
 
 lr = 2e-4
-img_size = 64
+img_size = 128
 channels_img = 3
 channels_noise = 100
 batch_size = 64
 num_epochs = 10000
-features_d = 128
+features_d = 64
 features_g = 64
 critic_it = 5
 lambda_gp = 10
-p = 0.10
+p = 0.3
 
 
 pre_process_transforms = transforms.Compose([
@@ -35,7 +35,6 @@ pre_process_transforms = transforms.Compose([
     ])
 
 random_transforms = transforms.Compose([
-    #transforms.RandomAdjustSharpness(0.5, p=p),
     transforms.RandomHorizontalFlip(p=p),
     transforms.RandomErasing(p=p),
     transforms.RandomRotation(degrees=p),
@@ -74,6 +73,7 @@ logger.start_log(f'Learning Rate: {lr}')
 logger.start_log(f'Critic Iterations: {critic_it}')
 logger.start_log(f'Features Critic: {features_d}')
 logger.start_log(f'Features Gen: {features_g}')
+logger.start_log(f'Transforms P: {p}')
 train_start_time = logger.start_log('======== TRAINING: WGAN-GP ========')
 for epoch in range(1, num_epochs + 1):
     epoch_start_time = logger.start_log(log=False)
@@ -121,6 +121,8 @@ for epoch in range(1, num_epochs + 1):
         if epoch % 100 == 0:
             fake_images = to_image_transform(fake_grid)
             fake_images.save('fake_data/fake' + str(epoch) + '.png')
+
+    torch.cuda.empty_cache()
 
     input = listen()
     if input == 'q\n':
