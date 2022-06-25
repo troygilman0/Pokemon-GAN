@@ -2,11 +2,11 @@ import torch
 import sys
 import select
 
-def gradient_penalty(critic, real, fake, layer_idx, device='cpu'):
+def gradient_penalty(critic, real, fake, layers, alpha, device='cpu'):
     BATCH_SIZE, C, H, W = real.shape
     epsilon = torch.rand((BATCH_SIZE, 1, 1, 1)).repeat(1, C, H, W).to(device)
     interp_imgs = real * epsilon + fake * (1 - epsilon)
-    mixed_scores = critic(interp_imgs, layer_idx)
+    mixed_scores = critic(interp_imgs, layers, alpha)
     gradient = torch.autograd.grad(
         inputs=interp_imgs,
         outputs=mixed_scores,
