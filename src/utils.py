@@ -1,12 +1,16 @@
 import torch
 import sys
 import select
+import numpy as np
+from math import factorial
+
 
 def gradient_penalty(critic, real, fake, layers, alpha, device='cpu'):
     BATCH_SIZE, C, H, W = real.shape
     epsilon = torch.rand((BATCH_SIZE, 1, 1, 1)).repeat(1, C, H, W).to(device)
     interp_imgs = real * epsilon + fake * (1 - epsilon)
-    mixed_scores = critic(interp_imgs, layers, alpha)
+    with torch.cuda.amp.autocast():
+        mixed_scores = critic(interp_imgs, layers, alpha)
     gradient = torch.autograd.grad(
         inputs=interp_imgs,
         outputs=mixed_scores,
@@ -34,3 +38,25 @@ def apply_transform(transform, data):
         new_data.append(transform(x))
     new_data = torch.concat(new_data).view((data.shape))
     return new_data
+
+def calc_fid(real, fake):
+    size = min(real.shape[0], fake.shape[0])
+    real = real[:size]
+    fake = fake[:size]
+    real = torch.reshape(real, (size, -1))
+    fake = torch.reshape(fake, (size, -1))
+    mu_real, sigma_real = torch.mean(real, axis=0), torch.cov(real)
+    mu_fake, sigma_fake = torch.mean(fake, axis=0), torch.cov(fake)
+    ss_diff = torch.sum((mu_real - mu_fake) ** 2.0)
+    cov_mean = torch.sqrt(torch.matmul(sigma_real, sigma_fake))
+    if torch.is_complex(cov_mean):
+        cov_mean = cov_mean.real
+    fid = ss_diff + torch.trace(sigma_real + sigma_fake - 2.0 * cov_mean)
+    return fid.item()
+
+def normalize(data):
+    data_mean = torch.mean(data, dim=0)
+    data_var = torch.var(data, dim=0)
+    data_norm = (data - data_mean) / torch.sqrt(data_var)
+    return data_norm
+

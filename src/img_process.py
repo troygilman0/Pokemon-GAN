@@ -3,6 +3,7 @@ from tqdm import tqdm
 from PIL import Image
 import warnings
 import logger
+import torch
 
 
 def load_dataset(path, transforms):
@@ -15,6 +16,7 @@ def load_dataset(path, transforms):
             image = image.convert('RGB')
         if image is not None:
             image = transforms(image)
-            dataset.append((image, 0))
-    logger.start_log(f'Loaded {len(dataset)} files from {path}')
+            dataset.append(image)
+    dataset = torch.concat(dataset).reshape((-1, 3, 256, 256))
+    logger.start_log(f'Loaded {dataset.shape[0]} files from {path}')
     return dataset

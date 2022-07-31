@@ -8,7 +8,6 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from img_process import load_dataset
-from models_old import init_weights
 from model import Generator, Critic
 from plots import plot_loss
 from utils import gradient_penalty, listen, apply_transform
@@ -21,6 +20,15 @@ pixel_scaling = {
     3: 32,
     4: 64,
     5: 128
+}
+
+batch_sizes = {
+    0: 16,
+    1: 16,
+    2: 16,
+    3: 16,
+    4: 16,
+    5: 16,
 }
 
 
@@ -67,8 +75,6 @@ fixed_noise = torch.randn((batch_size, noise_channels, 1, 1)).to(device)
 
 net_gen = Generator(in_channels, noise_channels).to(device)
 net_critic = Critic(in_channels).to(device)
-#init_weights(net_gen)
-#init_weights(net_critic)
 
 opt_gen = optim.Adam(net_gen.parameters(), lr=lr, betas=(0.0, 0.9))
 opt_critic = optim.Adam(net_critic.parameters(), lr=lr, betas=(0.0, 0.9))
@@ -147,9 +153,6 @@ for epoch in range(1, num_epochs + 1):
         real_grid = torchvision.utils.make_grid(real_examples[:32], normalize=True)
         writer_real.add_image("Real", real_grid, global_step=epoch)
         
-        #fake_prev = net_gen(fixed_noise[:32], layers, 0)
-        #fake_prev_grid = torchvision.utils.make_grid(fake_prev, normalize=True)
-        #writer_fake_prev.add_image("Fake Prev", fake_prev_grid, global_step=epoch)
         fake = net_gen(fixed_noise[:32], layers, alpha)
         fake_grid = torchvision.utils.make_grid(fake, normalize=True)
         writer_fake.add_image("Fake", fake_grid, global_step=epoch)
@@ -168,7 +171,6 @@ for epoch in range(1, num_epochs + 1):
 
     if fade:
         alpha = torch.tensor(float((epoch % phase_duration) / phase_duration)) # linear
-        #alpha = torch.sigmoid(torch.tensor(float((epoch % phase_duration) / phase_duration) * 8.0)) * 2.0 - 1.0 # linear-sigmoid
 
     input = listen()
     if input == 'q\n':

@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch
 
 
-factors = [1, 1, 1, 1, 1/2, 1/4]
+factors = [1, 1, 1, 1, 1/2, 1/4, 1/8]
 
 
 class Conv(nn.Module):
@@ -34,8 +34,8 @@ class ConvBlock(nn.Module):
     def __init__(self, channels_in, channels_out, use_pixelnorm=False):
         super().__init__()
         self.use_pn = use_pixelnorm
-        self.conv1 = Conv(channels_in, channels_out)
-        self.conv2 = Conv(channels_out, channels_out)
+        self.conv1 = Conv(channels_in, channels_out, kernel_size=3, stride=1, padding=1)
+        self.conv2 = Conv(channels_out, channels_out, kernel_size=3, stride=1, padding=1)
         self.relu = nn.LeakyReLU(0.2)
         self.norm = PixelNorm()
 
@@ -90,7 +90,7 @@ class Critic(nn.Module):
 
         self.initial_rgb = Conv(3, in_channels, kernel_size=1, stride=1, padding=0)
         self.initial = nn.Sequential(
-            Conv(in_channels + 1, in_channels, gain=2),
+            Conv(in_channels + 1, in_channels),
             nn.LeakyReLU(0.2),
             Conv(in_channels, in_channels, kernel_size=4, stride=1, padding=0),
             nn.LeakyReLU(0.2),
@@ -100,7 +100,7 @@ class Critic(nn.Module):
         self.relu = nn.LeakyReLU(0.2)
         self.avg_pool = nn.AvgPool2d(kernel_size=2, stride=2)
 
-        for i in range(len(factors) - 1):
+        for i in range(len(factors)-1):
             conv_in_channels = int(in_channels * factors[i+1])
             conv_out_channels = int(in_channels * factors[i])
             self.rgb_layers.append(Conv(3, conv_in_channels, kernel_size=1, stride=1, padding=0))
@@ -115,7 +115,6 @@ class Critic(nn.Module):
         return torch.cat([x, batch_stats], dim=1) # 512 -> 513
     
     def forward(self, x, layers, alpha):
-
         if (layers == 0):
             x = self.relu(self.initial_rgb(x))
             x = self.minibatch_std(x)
