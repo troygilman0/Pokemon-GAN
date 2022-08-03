@@ -8,7 +8,7 @@ from params import *
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 gen = Generator(CHANNELS_IN, CHANNELS_NOISE)
-gen.load_state_dict(torch.load('model.pt'))
+gen.load_state_dict(torch.load('/home/troy/Projects/Pokemon-GAN/out/2022-07-31 00:43:56.810497/checkpoints/model-L4.pt'))
 gen.to(device)
 gen.eval()
 
@@ -21,4 +21,4 @@ with torch.no_grad() and torch.cuda.amp.autocast():
 fake_grid = torchvision.utils.make_grid(fake[:32], normalize=True)
 fake_images = TO_IMAGE(fake_grid)
 #fake_images = fake_images.resize((1024, 154), resample=Image.Resampling.BOX)
-fake_images.save('fake_data/fake.png')
+fake_images.save('fake.png')

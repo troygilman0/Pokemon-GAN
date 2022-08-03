@@ -35,6 +35,7 @@ LAMBDA_GP = 10
 P = 0.8
 
 OUT_DIR = "out/"
+SEED = 0
 
 TRANSFORMS = transforms.Compose([
     transforms.Resize(IMG_SIZE),
@@ -42,7 +43,7 @@ TRANSFORMS = transforms.Compose([
     ])
 
 RAND_AUGMENT = [transforms.Compose([
-    transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
     transforms.RandomResizedCrop(PIXEL_SCALING[layer]),
     ]) for layer in range(LAYERS+1)]
 

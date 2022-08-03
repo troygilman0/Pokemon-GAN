@@ -1,7 +1,7 @@
 # Pokemon GAN
 
 <p align="center">
-    <img src="fake_data/fake5700.png">
+    <img src="fake.png">
     <br>
     <i>Fake Pokemon created by the Pokemon GAN</i>
 </p>

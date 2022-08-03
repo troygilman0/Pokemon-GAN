@@ -98,8 +98,8 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
     epoch_start_time = logger.start_log(log=False)
 
     for _, (real) in enumerate(dataloader):
-        real = scale_real(real, layer, alpha)
         real = real.to(device)
+        real = scale_real(real, layer, alpha)
         batch_size = real.shape[0]
         loss_gen, loss_critic = train_models(gen, critic, opt_gen, opt_critic, real, layer, alpha, batch_size, device)
         torch.cuda.empty_cache()
@@ -127,7 +127,7 @@ def train_layer(gen, critic, opt_gen, opt_critic, dataset, layer, fixed_noise, d
     for epoch in range(1, PHASE_DURATION + 1):
         train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alpha, fixed_noise, device, start_time)
 
-    torch.save(gen.state_dict(), session_dir + '/checkpoints/model-L' + layer + '.pt')
+    torch.save(gen.state_dict(), session_dir + '/checkpoints/model-L' + str(layer) + '.pt')
 
 
 def main():
@@ -145,7 +145,7 @@ def main():
     opt_gen = optim.Adam(gen.parameters(), lr=LR, betas=(0.0, 0.9))
     opt_critic = optim.Adam(critic.parameters(), lr=LR, betas=(0.0, 0.9))
 
-    torch.manual_seed(0)
+    torch.manual_seed(SEED)
     fixed_noise = torch.randn((32, CHANNELS_NOISE, 1, 1)).to(device)
 
     global step, session_dir, writer_fake, writer_real
