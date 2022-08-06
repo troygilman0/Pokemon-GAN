@@ -1,3 +1,4 @@
+from tabnanny import check
 from tracemalloc import start
 from matplotlib.pyplot import step
 import torch
@@ -127,7 +128,12 @@ def train_layer(gen, critic, opt_gen, opt_critic, dataset, layer, fixed_noise, d
     for epoch in range(1, PHASE_DURATION + 1):
         train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alpha, fixed_noise, device, start_time)
 
-    torch.save(gen.state_dict(), session_dir + '/checkpoints/model-L' + str(layer) + '.pt')
+    torch.save({
+        'gen_model': gen.state_dict(),
+        'critic_model': critic.state_dict(),
+        'gen_opt': opt_gen.state_dict(),
+        'critic_opt': opt_critic.state_dict()
+    }, session_dir + '/checkpoints/layer' + str(layer) + '.pt')
 
 
 def main():
@@ -145,6 +151,15 @@ def main():
     opt_gen = optim.Adam(gen.parameters(), lr=LR, betas=(0.0, 0.9))
     opt_critic = optim.Adam(critic.parameters(), lr=LR, betas=(0.0, 0.9))
 
+    if (LOAD_CHECKPOINT):
+        checkpoint = torch.load(LOAD_CHECKPOINT)
+        gen.load_state_dict(checkpoint['gen_model'])
+        critic.load_state_dict(checkpoint['critic_model'])
+        gen.to(device)
+        critic.to(device)
+        opt_gen.load_state_dict(checkpoint['gen_opt'])
+        opt_critic.load_state_dict(checkpoint['critic_opt'])
+        
     torch.manual_seed(SEED)
     fixed_noise = torch.randn((32, CHANNELS_NOISE, 1, 1)).to(device)
 
