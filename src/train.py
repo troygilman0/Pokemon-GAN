@@ -1,4 +1,5 @@
 from tabnanny import check
+from threading import local
 from tracemalloc import start
 from matplotlib.pyplot import step
 import torch
@@ -8,6 +9,12 @@ import torchvision
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torch.utils.tensorboard import SummaryWriter
+
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
+import torch.multiprocessing as mp
+
 from tqdm import tqdm
 from PIL import Image
 
@@ -18,6 +25,8 @@ from utils import gradient_penalty, calc_fid
 import logger
 import os
 from params import *
+
+
 
 
 SCALAR = torch.cuda.amp.GradScaler()
@@ -52,9 +61,9 @@ def log_results(gen, real, fixed_noise, layer, alpha):
 
     FID.append(calc_fid(real, fake))
 
-    if step % (PHASE_DURATION // 20) == 0:
+    if step % (PHASE_DURATION // 10) == 0:
         fake_images = TO_IMAGE(fake_grid)
-        fake_images = fake_images.resize((2048, 256), resample=Image.Resampling.BOX)
+        fake_images = fake_images.resize((2048, 256), resample=Image.BOX)
         fake_images.save(session_dir + '/fake_data/fake-' + str(step) + '.png')
         plot_loss(session_dir, LOSS_GEN, LOSS_CRITIC)
         plot_fid(session_dir, FID)
@@ -72,7 +81,7 @@ def train_models(gen, critic, opt_gen, opt_critic, real, layer, alpha, batch_siz
         #print(real.shape, fake.shape)
         critic_real = critic(real, layer, alpha).reshape(-1)
         critic_fake = critic(fake, layer, alpha).reshape(-1)
-        grad_penalty = gradient_penalty(critic, real, fake, layer, alpha, device=device)
+        grad_penalty = gradient_penalty(critic, real, fake, layer, alpha, device)
         loss_critic = (
             -(torch.mean(critic_real) - torch.mean(critic_fake)) 
             + LAMBDA_GP * grad_penalty 
@@ -97,13 +106,13 @@ def train_models(gen, critic, opt_gen, opt_critic, real, layer, alpha, batch_siz
 
 def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alpha, fixed_noise, device, start_time):
     epoch_start_time = logger.start_log(log=False)
+    dataloader.sampler.set_epoch(epoch)
 
     for _, (real) in enumerate(dataloader):
         real = real.to(device)
         real = scale_real(real, layer, alpha)
         batch_size = real.shape[0]
         loss_gen, loss_critic = train_models(gen, critic, opt_gen, opt_critic, real, layer, alpha, batch_size, device)
-        torch.cuda.empty_cache()
     
     LOSS_GEN.append(loss_gen)
     LOSS_CRITIC.append(loss_critic)
@@ -117,7 +126,8 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
 
 def train_layer(gen, critic, opt_gen, opt_critic, dataset, layer, fixed_noise, device, start_time):
     batch_size = BATCH_SIZES[layer]
-    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
+    sampler = DistributedSampler(dataset=dataset, shuffle=True) 
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, sampler=sampler, num_workers=1, pin_memory=True)
     alpha = 0
 
     if layer > 0:
@@ -137,7 +147,10 @@ def train_layer(gen, critic, opt_gen, opt_critic, dataset, layer, fixed_noise, d
 
 
 def main():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dist.init_process_group("nccl")
+    rank = dist.get_rank()
+    device = rank % torch.cuda.device_count()
+
     dataset = load_dataset('real_data', TRANSFORMS)
     
     gen = Generator(CHANNELS_IN, CHANNELS_NOISE).to(device)
@@ -148,17 +161,18 @@ def main():
     crtitic_params = sum(param.numel() for param in critic.parameters())
     logger.start_log(f'Critic was created with {crtitic_params} parameters')
 
-    opt_gen = optim.Adam(gen.parameters(), lr=LR, betas=(0.0, 0.9))
-    opt_critic = optim.Adam(critic.parameters(), lr=LR, betas=(0.0, 0.9))
-
     if (LOAD_CHECKPOINT):
         checkpoint = torch.load(LOAD_CHECKPOINT)
         gen.load_state_dict(checkpoint['gen_model'])
         critic.load_state_dict(checkpoint['critic_model'])
-        gen.to(device)
-        critic.to(device)
         opt_gen.load_state_dict(checkpoint['gen_opt'])
         opt_critic.load_state_dict(checkpoint['critic_opt'])
+
+    gen = DDP(gen, device_ids=[device], find_unused_parameters=True).to(device)
+    critic = DDP(critic, device_ids=[device], find_unused_parameters=True).to(device)
+
+    opt_gen = optim.Adam(gen.parameters(), lr=LR, betas=(0.0, 0.9))
+    opt_critic = optim.Adam(critic.parameters(), lr=LR, betas=(0.0, 0.9))
         
     torch.manual_seed(SEED)
     fixed_noise = torch.randn((32, CHANNELS_NOISE, 1, 1)).to(device)
@@ -169,14 +183,19 @@ def main():
 
     start_time = logger.start_log('======== TRAINING: PRO-GAN ========')
 
-    session_dir = os.path.join(OUT_DIR, str(start_time))
-    os.mkdir(session_dir)
-    os.mkdir(session_dir + "/fake_data")
-    os.mkdir(session_dir + "/plots")
-    os.mkdir(session_dir + "/checkpoints")
+    session_dir = os.path.join(OUT_DIR, str(start_time)[:19])
+    try:
+        os.mkdir(session_dir)
+        os.mkdir(session_dir + "/fake_data")
+        os.mkdir(session_dir + "/plots")
+        os.mkdir(session_dir + "/checkpoints")
+    except:
+        pass
 
     writer_fake = SummaryWriter(session_dir + "/logs/fake")
     writer_real = SummaryWriter(session_dir + "/logs/real")
+
+    dist.barrier()
 
     layer = INIT_LAYER
     while layer <= LAYERS:

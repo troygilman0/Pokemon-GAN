@@ -21,5 +21,5 @@ with torch.no_grad() and torch.cuda.amp.autocast():
 
 fake_grid = torchvision.utils.make_grid(fake[:32], normalize=True)
 fake_images = TO_IMAGE(fake_grid)
-fake_images = fake_images.resize((2048, 1024), resample=Image.Resampling.BOX)
+fake_images = fake_images.resize((2048, 1024), resample=Image.BOX)
 fake_images.save('fake.png')

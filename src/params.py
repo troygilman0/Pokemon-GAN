@@ -1,4 +1,5 @@
 import torchvision.transforms as transforms
+import torch
 
 PIXEL_SCALING = {
     0: 4,
@@ -24,15 +25,15 @@ LR = 1e-3
 IMG_SIZE = 256
 CHANNELS_IMG = 3
 CHANNELS_NOISE = 256
-CHANNELS_IN = 128
+CHANNELS_IN = 256
 
-PHASE_DURATION = 10000
+PHASE_DURATION = 5000
 LAYERS = 6
 INIT_LAYER = 0
 
 LAMBDA_GP = 10
 
-P = 0.8
+P = 0.5
 
 LOAD_CHECKPOINT = None
 OUT_DIR = "out/"
@@ -43,9 +44,9 @@ TRANSFORMS = transforms.Compose([
     transforms.ToTensor(), 
     ])
 
-RAND_AUGMENT = [transforms.Compose([
+RAND_AUGMENT = [transforms.RandomApply(torch.nn.ModuleList([
     #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
     transforms.RandomResizedCrop(PIXEL_SCALING[layer]),
-    ]) for layer in range(LAYERS+1)]
+    ]), p=P) for layer in range(LAYERS+1)]
 
 TO_IMAGE = transforms.ToPILImage()

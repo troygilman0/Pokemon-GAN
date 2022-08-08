@@ -5,7 +5,7 @@ import numpy as np
 from math import factorial
 
 
-def gradient_penalty(critic, real, fake, layers, alpha, device='cpu'):
+def gradient_penalty(critic, real, fake, layers, alpha, device):
     BATCH_SIZE, C, H, W = real.shape
     epsilon = torch.rand((BATCH_SIZE, 1, 1, 1)).repeat(1, C, H, W).to(device)
     interp_imgs = real * epsilon + fake * (1 - epsilon)
