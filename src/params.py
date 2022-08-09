@@ -17,8 +17,8 @@ BATCH_SIZES = {
     2: 256,
     3: 128,
     4: 32,
-    5: 8,
-    6: 4
+    5: 32, #8,
+    6: 16, #4
 }
 
 LR = 1e-3
@@ -27,13 +27,13 @@ CHANNELS_IMG = 3
 CHANNELS_NOISE = 256
 CHANNELS_IN = 256
 
-PHASE_DURATION = 5000
+PHASE_DURATION = 10000
 LAYERS = 6
 INIT_LAYER = 0
 
 LAMBDA_GP = 10
 
-P = 0.5
+P = 1.0
 
 LOAD_CHECKPOINT = None
 OUT_DIR = "out/"

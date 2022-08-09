@@ -13,7 +13,6 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
-import torch.multiprocessing as mp
 
 from tqdm import tqdm
 from PIL import Image
@@ -49,8 +48,12 @@ def scale_real(real, layer, alpha):
     return real
 
 
-def log_results(gen, real, fixed_noise, layer, alpha):
+def log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic):
     global step, session_dir, writer_real, writer_fake
+
+    LOSS_GEN.append(loss_gen)
+    LOSS_CRITIC.append(loss_critic)
+
     with torch.no_grad() and torch.cuda.amp.autocast():
         fake = gen(fixed_noise[:8], layer, alpha)
     #real = RAND_AUGMENT[layer](real)
@@ -114,14 +117,13 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
         batch_size = real.shape[0]
         loss_gen, loss_critic = train_models(gen, critic, opt_gen, opt_critic, real, layer, alpha, batch_size, device)
     
-    LOSS_GEN.append(loss_gen)
-    LOSS_CRITIC.append(loss_critic)
+    if (device == 0):
+        log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic)
+        logger.end_log(epoch_start_time, f'Epoch [{epoch}/{PHASE_DURATION}]\
+            Loss C: {LOSS_CRITIC[-1]:.2f}, Loss G: {LOSS_GEN[-1]:.2f}\
+            Layers: {layer}, Fade: {alpha:.2f}')
 
-    log_results(gen, real, fixed_noise, layer, alpha)
     torch.cuda.empty_cache()
-    logger.end_log(epoch_start_time, f'Epoch [{epoch}/{PHASE_DURATION}]\
-        Loss C: {LOSS_CRITIC[-1]:.2f}, Loss G: {LOSS_GEN[-1]:.2f}\
-        Layers: {layer}, Fade: {alpha:.2f}')
 
 
 def train_layer(gen, critic, opt_gen, opt_critic, dataset, layer, fixed_noise, device, start_time):
@@ -151,15 +153,13 @@ def main():
     rank = dist.get_rank()
     device = rank % torch.cuda.device_count()
 
-    dataset = load_dataset('real_data', TRANSFORMS)
+    torch.manual_seed(SEED)
     
     gen = Generator(CHANNELS_IN, CHANNELS_NOISE).to(device)
     critic = Critic(CHANNELS_IN).to(device)
 
-    gen_params = sum(param.numel() for param in gen.parameters())
-    logger.start_log(f'Generator was created with {gen_params} parameters')
-    crtitic_params = sum(param.numel() for param in critic.parameters())
-    logger.start_log(f'Critic was created with {crtitic_params} parameters')
+    gen = DDP(gen, device_ids=[device], find_unused_parameters=True).to(device)
+    critic = DDP(critic, device_ids=[device], find_unused_parameters=True).to(device)
 
     if (LOAD_CHECKPOINT):
         checkpoint = torch.load(LOAD_CHECKPOINT)
@@ -167,21 +167,22 @@ def main():
         critic.load_state_dict(checkpoint['critic_model'])
         opt_gen.load_state_dict(checkpoint['gen_opt'])
         opt_critic.load_state_dict(checkpoint['critic_opt'])
+        gen.to(device)
+        critic.to(device)
 
-    gen = DDP(gen, device_ids=[device], find_unused_parameters=True).to(device)
-    critic = DDP(critic, device_ids=[device], find_unused_parameters=True).to(device)
+    gen_params = sum(param.numel() for param in gen.parameters())
+    logger.start_log(f'Generator was created with {gen_params} parameters')
+    crtitic_params = sum(param.numel() for param in critic.parameters())
+    logger.start_log(f'Critic was created with {crtitic_params} parameters')
 
     opt_gen = optim.Adam(gen.parameters(), lr=LR, betas=(0.0, 0.9))
     opt_critic = optim.Adam(critic.parameters(), lr=LR, betas=(0.0, 0.9))
+
+    dataset = load_dataset('real_data', TRANSFORMS)
         
-    torch.manual_seed(SEED)
     fixed_noise = torch.randn((32, CHANNELS_NOISE, 1, 1)).to(device)
 
     global step, session_dir, writer_fake, writer_real
-
-    step = 1
-
-    start_time = logger.start_log('======== TRAINING: PRO-GAN ========')
 
     session_dir = os.path.join(OUT_DIR, str(start_time)[:19])
     try:
@@ -196,7 +197,9 @@ def main():
     writer_real = SummaryWriter(session_dir + "/logs/real")
 
     dist.barrier()
+    start_time = logger.start_log('======== TRAINING: PRO-GAN ========')
 
+    step = 1
     layer = INIT_LAYER
     while layer <= LAYERS:
         train_layer(gen, critic, opt_gen, opt_critic, dataset, layer, fixed_noise, device, start_time)

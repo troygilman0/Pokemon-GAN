@@ -2,9 +2,9 @@ from PIL import Image
 from tqdm import tqdm
 import os
 
-dir_path = 'out/2022-08-04 09:44:27.458229/fake_data/'
+dir_path = '/home/ubuntu/Pokemon-GAN/out/2022-08-08 19:07:31/fake_data/'
 gif_path = 'pokegan.gif'
-duration = 50
+duration = 100
 img_size = (2048, 308)
 
 file_dict = {}
