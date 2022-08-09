@@ -64,7 +64,7 @@ def log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic):
 
     FID.append(calc_fid(real, fake))
 
-    if step % (PHASE_DURATION // 10) == 0:
+    if step % (PHASE_DURATION // 20) == 0:
         fake_images = TO_IMAGE(fake_grid)
         fake_images = fake_images.resize((2048, 256), resample=Image.BOX)
         fake_images.save(session_dir + '/fake_data/fake-' + str(step) + '.png')
