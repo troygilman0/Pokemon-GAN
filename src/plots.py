@@ -34,3 +34,16 @@ def plot_fid(session_dir, fid_scores):
     plt.savefig(session_dir + '/plots/fid.png')
     plt.close()
     
+
+def plot_ada(session_dir, rt, p):
+    plt.figure()
+    epochs = len(rt)
+    epoch_range = np.arange(1, epochs + 1)
+    plot_line(epoch_range, rt, "rt", "navy", "cornflowerblue",)
+    plot_line(epoch_range, p, "p", "maroon", "lightcoral")
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
+    plt.grid()
+    plt.savefig(session_dir + '/plots/ada.png')
+    plt.close()

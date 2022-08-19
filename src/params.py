@@ -1,3 +1,4 @@
+from configparser import Interpolation
 import torchvision.transforms as transforms
 import torch
 
@@ -21,7 +22,7 @@ BATCH_SIZES = {
     6: 16, #4
 }
 
-LR = 1e-3
+LR = 2e-4
 IMG_SIZE = 256
 CHANNELS_IMG = 3
 CHANNELS_NOISE = 256
@@ -32,8 +33,11 @@ LAYERS = 6
 INIT_LAYER = 0
 
 LAMBDA_GP = 10
+BCE_LOSS = torch.nn.BCEWithLogitsLoss()
 
-P = 1.0
+TARGET_RT = 0.025
+P_INCREMENT = 0.001
+
 
 LOAD_CHECKPOINT = None
 OUT_DIR = "out/"
@@ -44,9 +48,21 @@ TRANSFORMS = transforms.Compose([
     transforms.ToTensor(), 
     ])
 
-RAND_AUGMENT = [transforms.RandomApply(torch.nn.ModuleList([
-    #transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
-    transforms.RandomResizedCrop(PIXEL_SCALING[layer]),
-    ]), p=P) for layer in range(LAYERS+1)]
+
+def get_rand_transform(layer, p):
+    return transforms.Compose([
+        transforms.RandomApply(torch.nn.ModuleList([transforms.ColorJitter(brightness=0.8)]), p=p),
+        transforms.RandomApply(torch.nn.ModuleList([transforms.ColorJitter(contrast=0.8)]), p=p),
+        transforms.RandomApply(torch.nn.ModuleList([transforms.ColorJitter(saturation=0.8)]), p=p),
+        transforms.RandomApply(torch.nn.ModuleList([transforms.ColorJitter(hue=0.5)]), p=p),
+
+        transforms.RandomHorizontalFlip(p=p),
+        transforms.RandomApply(torch.nn.ModuleList([transforms.RandomAffine(0, translate=(0.125, 0.125), interpolation=transforms.InterpolationMode.BILINEAR)]), p=p),
+        transforms.RandomApply(torch.nn.ModuleList([transforms.RandomRotation(90, interpolation=transforms.InterpolationMode.BILINEAR)]), p=p),
+        
+        #transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(PIXEL_SCALING[layer])]), p=p),
+        #transforms.RandomErasing(p=p)
+        ])
+
 
 TO_IMAGE = transforms.ToPILImage()

@@ -18,7 +18,7 @@ def gradient_penalty(critic, real, fake, layers, alpha, device):
         create_graph=True,
         retain_graph=True
     )[0]
-    gradient = gradient.view(gradient.shape[0], -1)
+    gradient = gradient.reshape((gradient.shape[0], -1))
     graident_norm = gradient.norm(2, dim=1)
     gradient_penalty = torch.mean((graident_norm - 1) ** 2)
     return gradient_penalty
@@ -48,7 +48,8 @@ def calc_fid(real, fake):
     mu_real, sigma_real = torch.mean(real, axis=0), torch.cov(real)
     mu_fake, sigma_fake = torch.mean(fake, axis=0), torch.cov(fake)
     ss_diff = torch.sum((mu_real - mu_fake) ** 2.0)
-    cov_mean = torch.sqrt(torch.matmul(sigma_real, sigma_fake))
+    cov_mean = torch.sqrt(torch.mm(sigma_real, sigma_fake))
+    cov_mean = torch.nan_to_num(cov_mean, nan=-1.0)
     if torch.is_complex(cov_mean):
         cov_mean = cov_mean.real
     fid = ss_diff + torch.trace(sigma_real + sigma_fake - 2.0 * cov_mean)
