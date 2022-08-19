@@ -22,7 +22,7 @@ BATCH_SIZES = {
     6: 16, #4
 }
 
-LR = 2e-4
+LR = 1e-4
 IMG_SIZE = 256
 CHANNELS_IMG = 3
 CHANNELS_NOISE = 256
