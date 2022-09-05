@@ -13,29 +13,30 @@ PIXEL_SCALING = {
 }
 
 BATCH_SIZES = {
-    0: 256,
-    1: 256,
-    2: 256,
-    3: 128,
+    0: 32,
+    1: 32,
+    2: 32,
+    3: 32,
     4: 32,
     5: 32, #8,
     6: 16, #4
 }
 
-LR = 1e-4
+LR_GEN = 5e-3
+LR_DISC = 2e-5
 IMG_SIZE = 256
 CHANNELS_IMG = 3
 CHANNELS_NOISE = 256
 CHANNELS_IN = 256
 
-PHASE_DURATION = 10000
+PHASE_DURATION = 2000
 LAYERS = 6
 INIT_LAYER = 0
 
 LAMBDA_GP = 10
 BCE_LOSS = torch.nn.BCEWithLogitsLoss()
 
-TARGET_RT = 0.025
+TARGET_RT = 0.4
 P_INCREMENT = 0.001
 
 

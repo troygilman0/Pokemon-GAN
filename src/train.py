@@ -140,7 +140,8 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
         rand_p += P_INCREMENT
     elif (rt < TARGET_RT):
         rand_p -= P_INCREMENT
-    rand_p = max(0, rand_p)
+    rand_p = max(0.0, rand_p)
+    rand_p = min(0.8, rand_p)
     
     if (device == 0):
         fid = 0#calc_fid(all_real, all_fake)
@@ -188,8 +189,8 @@ def main():
     init_weights(gen)
     init_weights(critic)
 
-    opt_gen = optim.Adam(gen.parameters(), lr=LR, betas=(0.0, 0.9))
-    opt_critic = optim.Adam(critic.parameters(), lr=LR, betas=(0.0, 0.9))
+    opt_gen = optim.Adam(gen.parameters(), lr=LR_GEN, betas=(0.0, 0.9))
+    opt_critic = optim.Adam(critic.parameters(), lr=LR_DISC, betas=(0.0, 0.9))
 
     gen = DDP(gen, device_ids=[device], find_unused_parameters=True).to(device)
     critic = DDP(critic, device_ids=[device], find_unused_parameters=True).to(device)
