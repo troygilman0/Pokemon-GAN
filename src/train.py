@@ -17,10 +17,12 @@ from PIL import Image
 from img_process import load_dataset
 from model import Generator, Critic, init_weights
 from plots import plot_loss, plot_fid, plot_ada
-from utils import gradient_penalty, calc_fid
+from utils import gradient_penalty, apply_transform
 import logger
 import os
 from params import *
+
+from transforms import RandTransforms
 
 
 
@@ -47,7 +49,7 @@ def scale_real(real, layer, alpha):
     return real
 
 
-def log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic, fid, rt, p):
+def log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic, fid, rt, p, rand_transforms):
     global step, session_dir, writer_real, writer_fake
 
     LOSS_GEN.append(loss_gen)
@@ -58,7 +60,7 @@ def log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic, fid
 
     with torch.no_grad() and torch.cuda.amp.autocast():
         fake = gen(fixed_noise[:8], layer, alpha)
-    #real = RAND_AUGMENT[layer](real)
+    #real = rand_transforms(real)
     real_grid = torchvision.utils.make_grid(real[:8], normalize=True, padding=0)
     fake_grid = torchvision.utils.make_grid(fake[:8], normalize=True, padding=0)
     writer_real.add_image("Real", real_grid, global_step=step)
@@ -81,16 +83,13 @@ def train_models(gen, critic, opt_gen, opt_critic, real, layer, alpha, batch_siz
     ### Train Discriminator: max log(D(real)) + log(1 - D(G(fake)))
     with torch.cuda.amp.autocast():
         fake = gen(noise, layer, alpha)
-        augmented = rand_transforms(torch.concat([real, fake]))
-        real, fake = augmented[:batch_size], augmented[batch_size:]
+        #real = rand_transforms(real)
+        #augmented = rand_transforms(torch.concat([real, fake]))
+        #real, fake = augmented[:batch_size], augmented[batch_size:]
+        real = apply_transform(rand_transforms, real)
+        fake = apply_transform(rand_transforms, fake)
         critic_real = critic(real, layer, alpha).reshape(-1)
         critic_fake = critic(fake, layer, alpha).reshape(-1)
-        grad_penalty = gradient_penalty(critic, real, fake, layer, alpha, device)
-        #loss_critic = (
-        #    -(torch.mean(critic_real) - torch.mean(critic_fake)) 
-        #    + LAMBDA_GP * grad_penalty 
-        #    + (0.001 * torch.mean(critic_real ** 2))
-        #)
         loss_d_real = BCE_LOSS(critic_real, torch.ones_like(critic_real))
         loss_d_fake = BCE_LOSS(critic_fake, torch.zeros_like(critic_fake))
         loss_critic = (loss_d_real + loss_d_fake) / 2
@@ -121,7 +120,7 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
     all_fake = []
     all_d_train = []
 
-    rand_transforms = get_rand_transform(layer, rand_p)
+    rand_transforms = RandTransforms(rand_p)
 
     for _, (real) in enumerate(dataloader):
         real = scale_real(real, layer, alpha)
@@ -141,15 +140,15 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
     elif (rt < TARGET_RT):
         rand_p -= P_INCREMENT
     rand_p = max(0.0, rand_p)
-    rand_p = min(0.8, rand_p)
+    rand_p = min(P_MAX, rand_p)
     
     if (device == 0):
         fid = 0#calc_fid(all_real, all_fake)
-        log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic, fid, rt, rand_p)
+        log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic, fid, rt, rand_p, rand_transforms)
         logger.end_log(epoch_start_time, f'Epoch [{epoch}/{PHASE_DURATION}]\
             Loss C: {LOSS_CRITIC[-1]:.2f}, Loss G: {LOSS_GEN[-1]:.2f}\
             rt: {rt:.2f}, p: {rand_p:0.2f}\
-            Layers: {layer}, Fade: {alpha:.2f}')
+            Layers: {layer}, Fade: {alpha:.3f}')
 
     torch.cuda.empty_cache()
 
@@ -231,7 +230,7 @@ def main():
     writer_real = SummaryWriter(session_dir + "/logs/real")
 
     step = 1
-    rand_p = 0
+    rand_p = 0.0
     layer = INIT_LAYER
     while layer <= LAYERS:
         train_layer(gen, critic, opt_gen, opt_critic, dataset, layer, fixed_noise, device, start_time)
