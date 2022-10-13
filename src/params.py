@@ -17,26 +17,26 @@ BATCH_SIZES = {
     1: 16,
     2: 16,
     3: 16,
-    4: 8,
-    5: 8, #8,
+    4: 4,
+    5: 4, #8,
     6: 4, #4
 }
 
-LR_GEN = 2e-3
+LR_GEN = 3e-3
 LR_DISC = 2e-5
 IMG_SIZE = 256
 CHANNELS_IMG = 3
 CHANNELS_NOISE = 256
 CHANNELS_IN = 256
 
-PHASE_DURATION = 2000
+PHASE_DURATION = 5000
 LAYERS = 6
 INIT_LAYER = 0
 
 LAMBDA_GP = 10
 BCE_LOSS = torch.nn.BCEWithLogitsLoss()
 
-TARGET_RT = 0.2
+TARGET_RT = 0.1
 P_INCREMENT = 0.001
 P_MAX = 0.8
 

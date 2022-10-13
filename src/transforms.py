@@ -24,25 +24,25 @@ class RandTransforms:
 
     def rand_brightness(self, x):
         if self.apply():
-            brightness_factor = random.uniform(0.0, 2.0)
+            brightness_factor = random.uniform(0.75, 1.25)
             x = F.adjust_brightness(x, brightness_factor)
         return x
 
     def rand_contrast(self, x):
         if self.apply():
-            contrast_factor = random.uniform(0.0, 2.0)
+            contrast_factor = random.uniform(0.75, 1.25)
             x = F.adjust_contrast(x, contrast_factor)
         return x
 
     def rand_saturation(self, x):
         if self.apply():
-            saturation_factor = random.uniform(0.0, 2.0)
+            saturation_factor = random.uniform(0.75, 1.25)
             x = F.adjust_saturation(x, saturation_factor)
         return x
 
     def rand_hue(self, x):
         if self.apply():
-            hue_factor = random.uniform(-0.5, 0.5)
+            hue_factor = random.uniform(-0.2, 0.2)
             x = F.adjust_hue(x, hue_factor)
         return x
 
