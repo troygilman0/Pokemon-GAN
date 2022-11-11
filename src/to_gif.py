@@ -2,7 +2,7 @@ from PIL import Image
 from tqdm import tqdm
 import os
 
-dir_path = '/home/troy/Projects/Pokemon-GAN/out/2022-10-12 10:23:40/fake_data/'
+dir_path = '/home/troy/Projects/Pokemon-GAN/out/2022-11-09 12:24:26/fake_data/'
 gif_path = 'pokegan.gif'
 duration = 50
 img_size = (2048, 308)

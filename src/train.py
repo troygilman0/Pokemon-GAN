@@ -78,25 +78,25 @@ def log_results(gen, real, fixed_noise, layer, alpha, loss_gen, loss_critic, fid
 
 
 def train_models(gen, critic, opt_gen, opt_critic, real, layer, alpha, batch_size, rand_transforms, device):
-    noise = torch.randn(batch_size, CHANNELS_NOISE, 1, 1).to(device)
-
-    ### Train Discriminator: max log(D(real)) + log(1 - D(G(fake)))
-    with torch.cuda.amp.autocast():
-        fake = gen(noise, layer, alpha)
-        #real = rand_transforms(real)
-        #augmented = rand_transforms(torch.concat([real, fake]))
-        #real, fake = augmented[:batch_size], augmented[batch_size:]
-        real = apply_transform(rand_transforms, real)
-        fake = apply_transform(rand_transforms, fake)
-        critic_real = critic(real, layer, alpha).reshape(-1)
-        critic_fake = critic(fake, layer, alpha).reshape(-1)
-        loss_d_real = BCE_LOSS(critic_real, torch.ones_like(critic_real))
-        loss_d_fake = BCE_LOSS(critic_fake, torch.zeros_like(critic_fake))
-        loss_critic = (loss_d_real + loss_d_fake) / 2
-    critic.zero_grad()
-    SCALAR.scale(loss_critic).backward(retain_graph=True)
-    SCALAR.step(opt_critic)
-    SCALAR.update()
+    for _ in range(DISC_IT):
+        ### Train Discriminator: max log(D(real)) + log(1 - D(G(fake)))
+        with torch.cuda.amp.autocast():
+            noise = torch.randn(batch_size, CHANNELS_NOISE, 1, 1).to(device)
+            fake = gen(noise, layer, alpha)
+            #real = rand_transforms(real)
+            augmented = rand_transforms(torch.concat([real, fake]))
+            real, fake = augmented[:batch_size], augmented[batch_size:]
+            #real = apply_transform(rand_transforms, real)
+            #fake = apply_transform(rand_transforms, fake)
+            critic_real = critic(real, layer, alpha).reshape(-1)
+            critic_fake = critic(fake, layer, alpha).reshape(-1)
+            loss_d_real = BCE_LOSS(critic_real, torch.ones_like(critic_real))
+            loss_d_fake = BCE_LOSS(critic_fake, torch.zeros_like(critic_fake))
+            loss_critic = (loss_d_real + loss_d_fake) / 2
+        critic.zero_grad()
+        SCALAR.scale(loss_critic).backward(retain_graph=True)
+        SCALAR.step(opt_critic)
+        SCALAR.update()
 
     ### Train Generator: max log(D(G(z)))
     with torch.cuda.amp.autocast():
@@ -120,7 +120,7 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
     all_fake = []
     all_d_train = []
 
-    rand_transforms = RandTransforms(rand_p)
+    rand_transforms = RandTransforms(rand_p, layer)
 
     for _, (real) in enumerate(dataloader):
         real = scale_real(real, layer, alpha)
@@ -133,8 +133,9 @@ def train_epoch(gen, critic, opt_gen, opt_critic, epoch, dataloader, layer, alph
 
     all_real = torch.cat(all_real)
     all_fake = torch.cat(all_fake)
+    all_d_train = torch.cat(all_d_train)
 
-    rt = torch.mean(torch.sin(torch.cat(all_d_train))).item()
+    rt = torch.mean(torch.sin(all_d_train)).item()
     if (rt > TARGET_RT):
         rand_p += P_INCREMENT
     elif (rt < TARGET_RT):
@@ -183,13 +184,13 @@ def main():
 
     torch.manual_seed(SEED)
     
-    gen = Generator(CHANNELS_IN, CHANNELS_NOISE).to(device)
-    critic = Critic(CHANNELS_IN).to(device)
+    gen = Generator(CHANNELS_IN_GEN, CHANNELS_NOISE).to(device)
+    critic = Critic(CHANNELS_IN_DISC).to(device)
     init_weights(gen)
     init_weights(critic)
 
-    opt_gen = optim.Adam(gen.parameters(), lr=LR_GEN, betas=(0.0, 0.9))
-    opt_critic = optim.Adam(critic.parameters(), lr=LR_DISC, betas=(0.0, 0.9))
+    opt_gen = optim.Adam(gen.parameters(), lr=LR_GEN, betas=(0.0, 0.99))
+    opt_critic = optim.Adam(critic.parameters(), lr=LR_DISC, betas=(0.0, 0.99))
 
     gen = DDP(gen, device_ids=[device], find_unused_parameters=True).to(device)
     critic = DDP(critic, device_ids=[device], find_unused_parameters=True).to(device)

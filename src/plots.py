@@ -6,7 +6,7 @@ from scipy.signal import savgol_filter
 
 def plot_line(x, y, label, color1, color2):
     #plt.plot(x, y, color=color1, label=label)
-    y = savgol_filter(y, 10, 3)
+    #y = savgol_filter(y, 10, 3)
     plt.plot(x, y, color=color2, label=label + " Avg.")
 
 def plot_loss(session_dir, loss_gen, loss_critic):
